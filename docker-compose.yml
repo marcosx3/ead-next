@@ -1,0 +1,33 @@
+services:
+  ead-front:
+    # Usa o Dockerfile que criamos para construir a imagem
+    build:
+      context: .
+      dockerfile: Dockerfile
+    
+    # Mapeamento de portas: Host:Container (acessível em http://localhost:3000)
+    ports:
+      - "3000:3000"
+      
+    # Mapeamento de volumes para desenvolvimento local
+    volumes:
+      # 1. Mapeia o código da máquina local para o diretório de trabalho do container.
+      # Isso permite que o hot-reloading funcione.
+      - .:/app
+      
+      # 2. Volume Anônimo: Evita que o node_modules da sua máquina (macOS/Windows) 
+      # sobrescreva o node_modules gerado dentro do container (Linux).
+      - /app/node_modules 
+      - /app/.next
+    environment:
+      - WATCHPACK_POLLING=true
+      - WATCHPACK_POLLING_INTERVAL=300
+      - NEXT_WEBPACK_USEPOLLING=1
+      - NEXT_DISABLE_FALLBACK_POLLING=1
+      - CHOKIDAR_USEPOLLING=true
+      
+    # Garante que o container rode o comando de desenvolvimento
+    command: npm run dev
+    
+    # Mantém o container rodando mesmo se o comando falhar ou parar (para facilitar a depuração)
+    restart: always
