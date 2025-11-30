@@ -13,7 +13,7 @@ import { useAuth } from '@/app/context/auth-context'; // Importa o hook de auten
 
 // 1. Definição do Schema de Validação com Zod
 const LoginSchema = z.object({
-  email: z.string().email('E-mail inválido.').min(1, 'O e-mail é obrigatório.'),
+  email: z.email('E-mail inválido.').min(1, 'O e-mail é obrigatório.'),
   password: z.string().min(6, 'A senha deve ter no mínimo 6 caracteres.'),
 });
 
@@ -32,25 +32,29 @@ export default function LoginPage() {
 
   // 2. Função de Submissão
   const onSubmit = async (data: LoginFormData) => {
-    // --- SIMULAÇÃO DE LOGIN ---
-    console.log('Dados submetidos:', data);
-
+  
     try {
-      // 💡 FUTURO: Chamar API NestJS
-      // const response = await fetch('http://seu-nest-api/auth/login', { ... });
-      // const { token } = await response.json();
-      
-      // Simulação de sucesso com um token dummy
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simula latência de rede
-      const dummyToken = `fake-jwt-for-${data.email}`;
+      const response = await fetch("http://localhost:3001/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data), // Envia { email, password }
+      });
 
-      // 3. Chama a função do Contexto para atualizar o estado e redirecionar
-      login(dummyToken);
+      if (!response.ok) {
+        
+        throw new Error("Credenciais inválidas");
+      }
+
+      const { token } = await response.json();
+
+      // Atualiza o estado global com token JWT
+      login(token);
 
     } catch (error) {
-      console.error('Erro de Login:', error);
-      // Aqui você lidaria com erros de credenciais inválidas vindos do NestJS
-      alert('Login ou senha incorretos. (Simulação)');
+      console.error("Erro de Login:", error);
+      alert( "Erro ao conectar ao servidor.");
     }
   };
 

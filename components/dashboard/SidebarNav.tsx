@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Home, Settings, Users, LineChart, List, Plus } from "lucide-react";
+import { Home, Settings, Users, LineChart, List, Plus, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -17,7 +17,16 @@ export const navItems = [
       { href: "/users/create", label: "Criar", icon: Plus },
     ]
   },
-  { href: "/settings", label: "Settings", icon: Settings, type: "link" },
+  { 
+      label: "Configurações", 
+      icon: Settings, 
+      type: "dropdown", 
+      subItems: [
+        { href: "/settings/permissions", label: "Permissões", icon: ShieldCheck }, // <-- Novo Link
+        // Adicione outras configurações futuras aqui
+        // { href: "/settings/profile", label: "Meu Perfil", icon: User },
+      ]
+    },
 ];
 
 interface SidebarNavProps {
