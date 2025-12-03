@@ -1,60 +1,58 @@
-// app/(auth)/login/page.tsx
 'use client';
 
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+// Importação de componentes (UI)
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/app/context/auth-context'; // Importa o hook de autenticação
+// Importa o hook de autenticação com a função signIn
+// 💡 Lembre-se que renomeamos 'login' para 'signIn' no AuthContext para incluir a lógica da API
+import { useAuth } from '@/app/context/auth-context'; 
 
-// 1. Definição do Schema de Validação com Zod
+// 1. Definição do Schema de Validação com Zod (inalterada)
 const LoginSchema = z.object({
-  email: z.email('E-mail inválido.').min(1, 'O e-mail é obrigatório.'),
+  email: z.string().min(1, 'O e-mail é obrigatório.').email('E-mail inválido.'),
   password: z.string().min(6, 'A senha deve ter no mínimo 6 caracteres.'),
 });
 
 type LoginFormData = z.infer<typeof LoginSchema>;
 
 export default function LoginPage() {
-  const { login } = useAuth(); // Obtém a função de login do contexto
+  // 💡 USANDO A FUNÇÃO signIn DO CONTEXTO (que já faz o fetch e o setAuthToken)
+  const { signIn } = useAuth(); 
 
   const {
     register,
     handleSubmit,
+    setError, // Adicionamos setError para exibir mensagens de erro do servidor
     formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({
     resolver: zodResolver(LoginSchema),
   });
 
-  // 2. Função de Submissão
+  // 2. Função de Submissão (simplificada)
   const onSubmit = async (data: LoginFormData) => {
-  
     try {
-      const response = await fetch("http://localhost:3001/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data), // Envia { email, password }
-      });
+      // 🚀 Chama a função de autenticação do AuthContext, passando email e password
+      await signIn(data.email, data.password);
 
-      if (!response.ok) {
-        
-        throw new Error("Credenciais inválidas");
-      }
-
-      const { token } = await response.json();
-
-      // Atualiza o estado global com token JWT
-      login(token);
+      // O AuthContext cuidará de salvar o token no localStorage e redirecionar para '/home'.
 
     } catch (error) {
+      // 🚨 Tratamento de Erro: Se o AuthContext lançar um erro (ex: 401 Unauthorized)
       console.error("Erro de Login:", error);
-      alert( "Erro ao conectar ao servidor.");
+      
+      // Define um erro genérico no formulário para ser exibido ao usuário
+      setError("root", {
+        type: "manual",
+        message: "Credenciais inválidas. Verifique seu e-mail e senha.",
+      });
+      // Opcionalmente, defina o erro diretamente nos campos:
+      // setError("password", { message: "Senha incorreta." }); 
     }
   };
 
@@ -67,6 +65,14 @@ export default function LoginPage() {
       
       <form onSubmit={handleSubmit(onSubmit)} noValidate>
         <CardContent className="space-y-4">
+          
+          {/* MENSAGEM DE ERRO GERAL (root error) */}
+          {errors.root && (
+            <p className="text-sm text-red-500 text-center font-semibold border border-red-300 p-2 rounded">
+              {errors.root.message}
+            </p>
+          )}
+
           {/* Campo E-mail */}
           <div className="space-y-2">
             <Label htmlFor="email">E-mail</Label>
@@ -74,7 +80,7 @@ export default function LoginPage() {
               id="email" 
               type="email" 
               placeholder="nome@exemplo.com" 
-              {...register('email')} // Conecta o input ao React Hook Form
+              {...register('email')} 
             />
             {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
           </div>
@@ -88,7 +94,7 @@ export default function LoginPage() {
             <Input 
               id="password" 
               type="password" 
-              {...register('password')} // Conecta o input ao React Hook Form
+              {...register('password')} 
             />
             {errors.password && <p className="text-sm text-red-500">{errors.password.message}</p>}
           </div>

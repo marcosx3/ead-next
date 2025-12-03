@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ColumnDef,
   flexRender,
@@ -60,7 +60,6 @@ export const columns: ColumnDef<User>[] = [
       return <Badge variant={variantMap[status]}>{status.toUpperCase()}</Badge>;
     },
   },
-// Certifique-se de importar DropdownMenu, DropdownMenuContent, etc.
 
 {
   id: "actions",
@@ -94,32 +93,49 @@ export const columns: ColumnDef<User>[] = [
 ];
 // 2. Componente da Tabela
 export function UsersTable() {
-  const [data] = useState<User[]>(userData);
+  const [data, setData] = useState<User[]>([]);
   const [globalFilter, setGlobalFilter] = useState('');
-  
-  // 3. ESTADO DA PAGINAÇÃO
+   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: 0, // Índice da página atual (começa em 0)
-    pageSize: 10,  // Número de itens por página (exemplo: 3)
-  });
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useReactTable({
+    pageIndex: 0,
+    pageSize: 10
+  })
+
+
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const API_URL = baseUrl! + "/users"; 
+  useEffect(() => {
+    async function loadUsers() {
+      try {
+        const res = await fetch(API_URL, {
+          method: "GET",
+          headers: {"Content-Type": "application/json"}
+        });
+        const users = await res.json();
+        setData(users);
+      } catch (error ) {
+          console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadUsers();
+  }, []);
+
+   const table = useReactTable({
     data,
     columns,
-    // 4. ADICIONAR MODELOS
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(), // <-- Habilita a paginação
-    
-    // 5. CONECTAR O ESTADO
+    getPaginationRowModel: getPaginationRowModel(),
     state: {
       globalFilter,
-      pagination, // <-- Conecta o estado de paginação
+      pagination
     },
     onGlobalFilterChange: setGlobalFilter,
-    onPaginationChange: setPagination, // <-- Função para atualizar o estado ao mudar de página
+    onPaginationChange: setPagination
   });
-
+    if (loading) return <div className="py-8 text-center">Carregando usuários...</div>;
   return (
     <div>
       {/* NOVO CAMPO DE BUSCA */}

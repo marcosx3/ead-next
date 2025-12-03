@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 // 1. Definição do Schema de Validação com Zod
 const CreateUserSchema = z.object({
@@ -16,6 +18,7 @@ const CreateUserSchema = z.object({
 
 type CreateUserFormData = z.infer<typeof CreateUserSchema>;
 export default function CreateUserPage() {
+  const router = useRouter();
   const {
       register,
       handleSubmit,
@@ -24,21 +27,25 @@ export default function CreateUserPage() {
       resolver: zodResolver(CreateUserSchema),
     });
     const onSubmit = async (data: CreateUserFormData) => {
-        console.log('Dados submetidos:', data);
+      const baseAPI = process.env.NEXT_PUBLIC_API_BASE_URL;
+  		const API_URL = baseAPI! + "/users";
 
         try {
-        // 💡 FUTURO: Chamar API NestJS
-        // const response = await fetch('http://seu-nest-api/auth/login', { ... });
-        // const { token } = await response.json();
-        console.log('Dados submetidos:', data);
-        // Simulação de sucesso com um token dummy
-        await new Promise(resolve => setTimeout(resolve, 1500)); // Simula latência de rede
+        const response = await fetch(API_URL, { 
+          method: "POST",
+				  headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify(data),});
+        if (!response.ok) throw new Error("Erro ao criar usuário");
 
-
+        const { token } = await response.json();
+        
+        toast.success("usuario criado com sucesso!");
+        router.push("/dashboard");
         } catch (error) {
         console.error('Erro de Login:', error);
-        // Aqui você lidaria com erros de credenciais inválidas vindos do NestJS
-        alert('Login ou senha incorretos. (Simulação)');
+        toast.error("Usuário não cadastrado");
         }
     };
   return (

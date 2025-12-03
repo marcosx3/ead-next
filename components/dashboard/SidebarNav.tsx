@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Home, Settings, Users, LineChart, List, Plus, ShieldCheck } from "lucide-react";
+import { Home, Settings, Users, LineChart, List, Plus, ShieldCheck, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -9,12 +9,21 @@ export const navItems = [
   { href: "/", label: "Dashboard", icon: Home, type: "link" }, 
   { href: "/analytics", label: "Analytics", icon: LineChart, type: "link" },
   { 
-    label: "Users", 
+    label: "Usuários", 
     icon: Users, 
     type: "dropdown", 
     subItems: [
       { href: "/users", label: "Listar", icon: List },
       { href: "/users/create", label: "Criar", icon: Plus },
+    ]
+  },
+  { 
+    label: "Cursos", 
+    icon: Video, 
+    type: "dropdown", 
+    subItems: [
+      { href: "/courses", label: "Listar", icon: List },
+      { href: "/courses/create", label: "Criar", icon: Video },
     ]
   },
   { 
