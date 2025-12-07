@@ -1,141 +1,137 @@
-"use client";
+'use client';
 
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import React, { useState } from 'react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { toast } from 'sonner';
 
-const CreateCourseSchema = z.object({
-	title: z.string().min(4, "Título deve ter mais que 3 caracteres."),
-	slug: z.string().min(2, "Slug é obrigatório."),
-	description: z.string().min(4, "Descrição deve ser maior que 3 caracteres."),
-	is_paid: z.boolean(),
-	price: z.number().nonnegative("O preço deve ser um número positivo."),
-	is_published: z.boolean(),
-	points_awarded: z.number().min(0, "Pontuação deve ser positiva."),
-});
-
-type CreateCourseFormData = z.infer<typeof CreateCourseSchema>;
-
-export default function CreateCoursePage() {
-
-	const {
-		register,
-		handleSubmit,
-		formState: { errors },
-	} = useForm<CreateCourseFormData>({
-		resolver: zodResolver(CreateCourseSchema),
+// Importe os componentes de etapa (criaremos a seguir)
+import CourseForm from '@/components/courses/CourseForm';
+import ModulesAndLessonsForm from '@/components/courses/ModulesAndLessonsForm';
+import QuizAndQuestionsForm from '@/components/courses/QuizAndQuestionsForm';
+import CourseReview from '@/components/courses/CourseReview';
+import { useRouter } from 'next/navigation';
+// Definir o tipo de dado que será acumulado durante o processo
+type CourseCreationData = {
+	course: {
+		title: string;
+		slug: string;
+		description: string;
+		is_paid: boolean;
+		price: number; // Importante ser inicializado como number
+		is_published: boolean;
+		points_awarded: number;
+	}; 
+	modules: any[]; // Módulos com suas Aulas
+	quizzes: any[]; // Perguntas e Respostas
+	courseId?: number; // ID retornado após a criação do curso
+};
+export default function CourseCreatorWizard() {
+	
+	const router = useRouter();
+	const [currentStep, setCurrentStep] = useState("course");
+	const [courseData, setCourseData] = useState<CourseCreationData>({
+		course: {
+			title: '',
+			slug: '',
+			description: '',
+			is_paid: false,
+			price: 0, 
+			is_published: false,
+			points_awarded: 0,
+		},
+		modules: [],
+		quizzes: [],
 	});
+	const [isLoading, setIsLoading] = useState(false);
 
-	const onSubmit = async (data: CreateCourseFormData) => {
+	// Função para avançar para o próximo passo
+	const goToNextStep = (nextStep: string, data: any, stepName: string) => {
+		setCourseData(prev => ({
+			...prev,
+			[stepName]: data,
+		}));
+		setCurrentStep(nextStep);
+		toast.info(`Etapa ${stepName} concluída!`);
+	};
+
+	// Função para submissão final
+	const handleFinalSubmit = async () => {
+		setIsLoading(true);
+
 		const baseAPI = process.env.NEXT_PUBLIC_API_BASE_URL;
-  		const API_URL = baseAPI! + "/courses";
-
+		const API_URL = baseAPI! + "courses/course-full";
 		try {
-			const response = await fetch(API_URL, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify(data),
-			});
-
-			if (!response.ok) {
-				throw new Error(`Erro: ${response.status}`);
+			const token = localStorage.getItem('access_token');
+			if (!token) {
+				toast.error("Sessão expirada ou não autenticada. Faça login novamente.");
+				setIsLoading(false);
+				return; 
 			}
+			const response = await fetch(API_URL, { 
+			method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						"Authorization": `Bearer ${token}`,
+					},
+					body: JSON.stringify(courseData),});
+			if (!response.ok) throw new Error("Erro ao criar curso");
 
-			const result = await response.json();
 			toast.success("Curso criado com sucesso!");
+			router.push("/courses");
 		} catch (error) {
-			toast.error("Não foi possível criar o curso.");
+			toast.error("curso não cadastrado: " + error);
+		} finally {
+			setIsLoading(false);
 		}
 	};
 
-
 	return (
-		<div className="space-y-6 max-w-2xl mx-auto py-8">
-			<h1 className="text-2xl font-semibold">Criar Novo Curso</h1>
+		<div className="space-y-6">
+			<h1 className="text-3xl font-bold">Criador de Conteúdo do Curso 📚</h1>
+			
+			<Tabs value={currentStep} onValueChange={setCurrentStep}>
+				<TabsList className="grid w-full grid-cols-4">
+					<TabsTrigger value="course" disabled={isLoading}>1. Dados Básicos</TabsTrigger>
+					<TabsTrigger value="modules" disabled={isLoading}>2. Estrutura (Módulos/Aulas)</TabsTrigger>
+					<TabsTrigger value="quiz" disabled={isLoading}>3. Quizzes/Perguntas</TabsTrigger>
+					<TabsTrigger value="review" disabled={isLoading}>4. Revisão/Publicar</TabsTrigger>
+				</TabsList>
 
-			<form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
-				{/* Title */}
-				<div className="space-y-2">
-					<label className="text-sm font-medium">Título</label>
-					<input
-						{...register("title")}
-						type="text"
-						placeholder="Nome do curso"
-						className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+				{/* ETAPA 1: Dados do Curso (Você já tem quase pronto!) */}
+				<TabsContent value="course">
+					<CourseForm 
+						initialData={courseData.course}
+						onNext={(data) => goToNextStep("modules", data, "course")}
+						// Note que o `CourseForm` anterior deve ser ligeiramente ajustado
+						// para usar `onNext` em vez de submeter diretamente.
 					/>
-					{errors.title && <p className="text-red-500 text-sm">{errors.title.message}</p>}
-				</div>
+				</TabsContent>
 
-				{/* Slug */}
-				<div className="space-y-2">
-					<label className="text-sm font-medium">Slug</label>
-					<input
-						{...register("slug")}
-						type="text"
-						placeholder="ex: curso-de-react"
-						className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+				{/* ETAPA 2: Módulos e Aulas */}
+				<TabsContent value="modules">
+					<ModulesAndLessonsForm
+						initialData={courseData.modules}
+						onNext={(data) => goToNextStep("quiz", data, "modules")}
 					/>
-					{errors.slug && <p className="text-red-500 text-sm">{errors.slug.message}</p>}
-				</div>
+				</TabsContent>
 
-				{/* Description */}
-				<div className="space-y-2">
-					<label className="text-sm font-medium">Descrição</label>
-					<textarea
-						{...register("description")}
-						rows={4}
-						placeholder="Descrição do curso"
-						className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+				{/* ETAPA 3: Perguntas e Respostas */}
+				<TabsContent value="quiz">
+					<QuizAndQuestionsForm
+						initialData={courseData.quizzes}
+						onNext={(data) => goToNextStep("review", data, "quizzes")}
 					/>
-					{errors.description && (
-						<p className="text-red-500 text-sm">{errors.description.message}</p>
-					)}
-				</div>
+				</TabsContent>
 
-				{/* is_paid */}
-				<div className="flex items-center gap-2">
-					<input type="checkbox" {...register("is_paid")} />
-					<label className="text-sm font-medium">Curso Pago?</label>
-				</div>
-
-				{/* Price */}
-				<div className="space-y-2">
-					<label className="text-sm font-medium">Preço</label>
-					<input
-						{...register("price", { valueAsNumber: true })}
-						type="number"
-						placeholder="Valor do curso"
-						className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+				{/* ETAPA 4: Revisão Final */}
+				<TabsContent value="review">
+					<CourseReview 
+						data={courseData} 
+						onSubmit={handleFinalSubmit}
+						isLoading={isLoading}
 					/>
-					{errors.price && <p className="text-red-500 text-sm">{errors.price.message}</p>}
-				</div>
-
-				{/* is_published */}
-				<div className="flex items-center gap-2">
-					<input type="checkbox" {...register("is_published")} />
-					<label className="text-sm font-medium">Publicado?</label>
-				</div>
-
-				{/* Points awarded */}
-				<div className="space-y-2">
-					<label className="text-sm font-medium">Pontos ao Concluir</label>
-					<input
-						{...register("points_awarded", { valueAsNumber: true })}
-						type="number"
-						placeholder="Ex: 100"
-						className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-					/>
-					{errors.points_awarded && (
-						<p className="text-red-500 text-sm">{errors.points_awarded.message}</p>
-					)}
-				</div>
-
-				<Button type="submit" className="w-full">Criar Curso</Button>
-			</form>
+				</TabsContent>
+			</Tabs>
 		</div>
 	);
 }

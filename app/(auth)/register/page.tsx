@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 // 1. Definição do Schema de Validação com Zod
 const RegisterSchema = z.object({
@@ -19,6 +21,7 @@ const RegisterSchema = z.object({
 type RegisterFormData = z.infer<typeof RegisterSchema>;
 
 export default function RegisterPage() {
+  const router = useRouter();
     const {
       register,
       handleSubmit,
@@ -28,15 +31,28 @@ export default function RegisterPage() {
     });
 
    const onSubmit = async (data: RegisterFormData) => {
-     try {
-      console.log('Dados submetidos:', data);
-      // Simulação de sucesso 
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simula latência de rede
+   try {
+    		const baseAPI = process.env.NEXT_PUBLIC_API_BASE_URL;
+		    const API_URL = baseAPI! + "auth/register";
 
-    } catch (error) {
-      console.error('Erro de Login:', error);
-      alert('Cadastro nao realizado. (Simulação)');
-    }
+        const response = await fetch(API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Erro: ${response.status}`);
+        }
+
+        const result = await response.json();
+        toast.success("Curso criado com sucesso!");
+        router.push("/courses");
+      } catch (error) {
+        toast.error("Não foi possível criar o curso.");
+      }
    };
 
   return (

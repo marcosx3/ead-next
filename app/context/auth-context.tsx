@@ -1,83 +1,99 @@
-'use client';
+"use client";
 
 import { useRouter } from 'next/navigation';
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { jwtDecode } from 'jwt-decode'; // corrigido o import
 
-// 1. Definição da Interface do Contexto
+interface JwtPayload {
+  sub: string; // ID do usuário
+  email: string;
+  role: string;
+  permissions?: string[]; // pode vir undefined
+}
+
 interface AuthContextType {
   isAuthenticated: boolean;
-  // Nova função para realizar a chamada da API (signIn)
-  signIn: (email: string, password: string) => Promise<void>; 
+  permissions: string[];
+  user: JwtPayload | null; // Novo campo user
+  signIn: (email: string, password: string) => Promise<void>;
   logout: () => void;
+}
+
+interface AuthState {
+  user: { sub: string } | null;
+  authLoading: boolean;          // <- novo
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// URL base da  API 
-const API_URL = 'http://localhost:3001/auth/login'; 
-
-// 2. Provedor de Autenticação
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [permissions, setPermissions] = useState<string[]>([]);
+  const [user, setUser] = useState<JwtPayload | null>(null); // Estado para o user
   const router = useRouter();
 
-  // Função interna para salvar o token e mudar o estado (mantida)
-  const setAuthToken = (token: string) => {
-    // 💡 Armazena o token (use Cookies HttpOnly em produção!)
-    localStorage.setItem('lms_token', token); 
+  // Carrega token do localStorage ao iniciar
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      applyToken(token);
+    }
+  }, []);
+
+  const applyToken = (token: string) => {
+    localStorage.setItem('access_token', token);
     setIsAuthenticated(true);
-    router.push('/home'); 
-  };
-  
-  // Função para fazer a chamada real à API (o novo núcleo)
-  const signIn = async (email: string, password: string): Promise<void> => {
+
     try {
-      const response = await fetch(API_URL, {
+      const decoded: JwtPayload = jwtDecode(token);
+      setUser(decoded); // Define o user com base no token decodificado
+      setPermissions(decoded.permissions ?? []);
+    } catch (err) {
+      console.error("Erro ao decodificar token:", err);
+      setPermissions([]);
+      setUser(null);
+    }
+  };
+
+  const signIn = async (email: string, password: string) => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}auth/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
       if (!response.ok) {
-        // Lança um erro se a resposta não for 2xx (por exemplo, 401 Unauthorized)
         const errorData = await response.json();
         throw new Error(errorData.message || 'Falha ao autenticar.');
       }
 
-      // Se for bem-sucedido, obtém o token
       const data = await response.json();
-      const token = data.access_token;
-      
-      // Salva o token e redireciona
-      setAuthToken(token); 
-
-    } catch (error) {
-      console.error('Erro de Login:', error);
-      // Você pode querer exibir uma notificação para o usuário aqui
-      throw error; // Re-lança para que o componente de Login possa lidar com isso
+      applyToken(data.access_token);
+      router.push('/home');
+    } catch (err) {
+      console.error("Erro de login:", err);
+      throw err;
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('lms_token');
+    localStorage.removeItem('access_token');
     setIsAuthenticated(false);
+    setPermissions([]);
+    setUser(null); // Limpa o user ao fazer logout
     router.push('/login');
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, signIn, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, permissions, user, signIn, logout }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-// 3. Hook Personalizado (inalterado)
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 }
