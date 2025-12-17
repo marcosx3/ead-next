@@ -10,7 +10,13 @@ import { useCourses } from '@/app/hooks/useCourses';
 
 export default function ListCoursesPage() {
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table'); // Estado para alternar entre tabelas e cards
+  const [showEnrolledOnly, setShowEnrolledOnly] = useState(false); // Estado para mostrar apenas cursos aos quais o usuário está inscrito
   const { courses, enrollments, handleEnrollment } = useCourses(); // Usando hook customizado para pegar cursos e inscrições
+
+  // Filtra os cursos para mostrar apenas os aos quais o usuário está inscrito
+  const filteredCourses = showEnrolledOnly
+    ? courses.filter(course => enrollments[Number(course.id)])
+    : courses;
 
   return (
     <div className="space-y-6">
@@ -47,11 +53,18 @@ export default function ListCoursesPage() {
         </div>
       </div>
 
+      {/* Botão para filtrar cursos aos quais o usuário está inscrito */}
+      <div className="flex justify-between items-center">
+        <Button onClick={() => setShowEnrolledOnly(!showEnrolledOnly)} variant="outline">
+          {showEnrolledOnly ? 'Mostrar Todos os Cursos' : 'Mostrar Apenas Cursos Inscritos'}
+        </Button>
+      </div>
+
       {/* Renderização condicional */}
       {viewMode === 'table' ? (
-        <CourseTable courses={courses} enrollments={enrollments} handleEnrollment={handleEnrollment} />
+        <CourseTable courses={filteredCourses} enrollments={enrollments} handleEnrollment={handleEnrollment} />
       ) : (
-        <CoursesCards courses={courses} enrollments={enrollments} handleEnrollment={handleEnrollment} />
+        <CoursesCards courses={filteredCourses} enrollments={enrollments} handleEnrollment={handleEnrollment} />
       )}
     </div>
   );

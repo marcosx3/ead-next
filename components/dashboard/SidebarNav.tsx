@@ -16,7 +16,7 @@ export interface NavItem {
 }
 
 export const navItems: NavItem[] = [
-  { href: "/", label: "Dashboard", icon: Home, type: "link" },
+  { href: "/home", label: "Dashboard", icon: Home, type: "link" },
   { href: "/analytics", label: "Analytics", icon: LineChart, type: "link" },
   {
     label: "Usuários",
@@ -26,12 +26,6 @@ export const navItems: NavItem[] = [
       { href: "/users", label: "Listar", icon: List, type: "link", permission: "users.read" },
       { href: "/users/create", label: "Criar", icon: Plus, type: "link", permission: "users.create" },
     ],
-  },
-  {
-    label: "Meus Cursos",
-    icon: Video,
-    type: "link",
-    href: "/courses/my-courses"
   },
   {
     label: "Cursos",

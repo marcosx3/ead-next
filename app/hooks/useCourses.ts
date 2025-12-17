@@ -41,24 +41,15 @@ export function useCourses() {
     const ac = new AbortController();
 
     async function loadCourses() {
-
       setLoading(true);
       const token = localStorage.getItem('access_token');
 
-      if (!token) {
-        toast.error('Sessão expirada ou não autenticada.');
-        setLoading(false);
-        return;
-      }
-
-      if (!user?.sub) {
-        toast.error('Usuário não encontrado ou não autenticado.');
+      if (!token || !user?.sub) {
         setLoading(false);
         return;
       }
 
       try {
-        // Carrega cursos
         const res = await fetch(API_URL, {
           method: 'GET',
           headers: {
@@ -71,24 +62,18 @@ export function useCourses() {
 
         const result = await safeJson(res);
         if (!res.ok) {
-          console.error('Erro ao carregar cursos:', {
-            status: res.status,
-            statusText: res.statusText,
-            body: result,
-          });
           toast.error('Erro ao carregar cursos.');
           return;
         }
 
         setCourses((result as any).data ?? (result as Course[]));
 
-        // Carrega inscrições do usuário
+        // Carrega inscrições e popula o mapa
         const userEnrollments = await fetchEnrollments(user.sub, token, baseAPI, ac.signal);
         setEnrollments(userEnrollments);
       } catch (err) {
         if ((err as any).name !== 'AbortError') {
-          console.error('Erro ao carregar cursos:', err);
-          toast.error('Erro ao carregar cursos.');
+          toast.error('Erro ao carregar conteúdo.');
         }
       } finally {
         setLoading(false);
@@ -96,9 +81,8 @@ export function useCourses() {
     }
 
     loadCourses();
-
     return () => ac.abort();
-  }, [user?.sub]); // depende só do ID
+  }, [user?.sub]);
 
   const fetchEnrollments = async (
     userId: string,
@@ -106,54 +90,31 @@ export function useCourses() {
     base: string,
     signal?: AbortSignal
   ): Promise<EnrollmentsMap> => {
-    if (!userId) {
-      console.error('Usuário não encontrado ou não autenticado.');
-      return {};
-    }
-
     try {
       const url = `${base}enrollment/user/${userId}`;
-
-      const enrollmentsResponse = await fetch(url, {
+      const res = await fetch(url, {
         method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
         signal,
       });
-      const payload = await safeJson(enrollmentsResponse);
-
-      if (!enrollmentsResponse.ok) {
-        console.error('Erro ao buscar inscrições:', {
-          status: enrollmentsResponse.status,
-          statusText: enrollmentsResponse.statusText,
-          body: payload,
-        });
-        return {};
-      }
-
-      // payload esperado: Enrollment[]
-      if (Array.isArray(payload)) {
-        if (payload.length === 0) {
-          return {};
-        }
-        return payload.reduce((acc: EnrollmentsMap, enrollment: any) => {
-          acc[Number(enrollment.id)] = true;
-          return acc;
-        }, {});
-      } else {
-        console.error('Formato inesperado para enrollmentsData:', payload);
-        return {};
-      }
+      const payload = await safeJson(res);
+    
+			if (Array.isArray(payload)) {
+				return payload.reduce((acc: EnrollmentsMap, enrollment: any) => {
+					const courseId = enrollment.course?.id;
+					
+					if (courseId) {
+						acc[Number(courseId)] = true;
+					}
+					return acc;
+				}, {});
+			}
+			return {};
     } catch (err) {
-      if ((err as any).name !== 'AbortError') {
-        console.error('Erro ao carregar inscrições:', err);
-      }
       return {};
     }
   };
-
+  
   const handleEnrollment = async (courseId: number | string, price: number) => {
     const token = localStorage.getItem('access_token');
 
@@ -188,7 +149,7 @@ export function useCourses() {
           course_id: numericId,
         }),
       });
-
+     
       const payload = await safeJson(res);
 
       if (res.ok) {

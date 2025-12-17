@@ -1,3 +1,6 @@
+import { Lesson } from "./lessons";
+import { Module } from "./modules";
+
 export type Course = {
     id: string;
     title: string;
@@ -8,4 +11,7 @@ export type Course = {
     is_published: boolean;
     points_awarded: number;
     status: string;
+    modules: Module[];
+    lessons: Lesson[];
+
 }
