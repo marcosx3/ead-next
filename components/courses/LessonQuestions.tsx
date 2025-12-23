@@ -15,13 +15,11 @@ import { ChevronRight } from "lucide-react";
 interface LessonQuestionsProps {
   questions: Question[];
   lessonId: number;
-  userId: number;
 }
 
 export default function LessonQuestions({
   questions,
   lessonId,
-  userId,
 }: LessonQuestionsProps) {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -58,7 +56,6 @@ export default function LessonQuestions({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          userID: userId,
           total_points: points,
         }),
       });

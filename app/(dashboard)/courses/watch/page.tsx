@@ -117,40 +117,53 @@ const WatchCourse = () => {
     // Função para Marcar Aula Concluída
     // ===============================
     const markLessonAsCompleted = async () => {
-        if (!activeLesson || (activeLesson as any).completed) return;
-        
-        setIsSubmitting(true);
-        const baseAPI = process.env.NEXT_PUBLIC_API_BASE_URL;
-        // Rota de exemplo: POST /api/lessons/1/complete
-        const API_URL = `${baseAPI}lessons/${activeLesson.id}/complete`; 
-        const token = localStorage.getItem("access_token");
+    if (!activeLesson || (activeLesson as any).completed) return;
 
-        try {
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json' 
-                },
-            });
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+        toast.error("Sessão expirada.");
+        return;
+    }
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || "Falha ao marcar a aula como concluída.");
-            }
+    setIsSubmitting(true);
 
-            toast.success("Aula marcada como concluída! 🎉");
-            
-            // Re-carrega o curso para atualizar o progresso e o status da lição na UI
-            await fetchCourse(); 
+    const baseAPI = process.env.NEXT_PUBLIC_API_BASE_URL;
+    const API_URL = `${baseAPI}progress/complete-lesson`;
 
-        } catch (error: any) {
-            console.error("Erro ao completar a aula:", error);
-            toast.error(error.message || "Erro de conexão ao completar a aula.");
-        } finally {
-            setIsSubmitting(false);
-        }
+    // DTO enviado ao backend
+    const lessonCompleteDTO = {
+        lessonId: Number(activeLesson.id),
     };
+
+    try {
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(lessonCompleteDTO),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(
+                errorData.message || "Falha ao marcar a aula como concluída."
+            );
+        }
+
+        toast.success("Aula marcada como concluída! 🎉");
+
+        // Recarrega o curso para atualizar progresso e status da aula
+        await fetchCourse();
+    } catch (error: any) {
+        console.error("Erro ao completar a aula:", error);
+        toast.error(error.message || "Erro de conexão ao completar a aula.");
+    } finally {
+        setIsSubmitting(false);
+    }
+};
+
 
     // Chama o fetch inicial na montagem
     useEffect(() => {

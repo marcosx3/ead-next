@@ -1,27 +1,23 @@
 "use client";
 
-import { useRouter } from 'next/navigation';
-import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { jwtDecode } from 'jwt-decode'; // corrigido o import
+import { useRouter } from "next/navigation";
+import { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { jwtDecode } from "jwt-decode";
 
 interface JwtPayload {
-  sub: string; // ID do usuário
+  sub: string;
   email: string;
   role: string;
-  permissions?: string[]; // pode vir undefined
+  permissions?: string[];
+  exp: number;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
   permissions: string[];
-  user: JwtPayload | null; // Novo campo user
+  user: JwtPayload | null;
   signIn: (email: string, password: string) => Promise<void>;
   logout: () => void;
-}
-
-interface AuthState {
-  user: { sub: string } | null;
-  authLoading: boolean;          // <- novo
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,64 +25,94 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [permissions, setPermissions] = useState<string[]>([]);
-  const [user, setUser] = useState<JwtPayload | null>(null); // Estado para o user
+  const [user, setUser] = useState<JwtPayload | null>(null);
   const router = useRouter();
 
-  // Carrega token do localStorage ao iniciar
-  useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      applyToken(token);
-    }
-  }, []);
+  const isTokenExpired = (exp: number) => Date.now() >= exp * 1000;
+
+  const clearAuth = () => {
+    localStorage.removeItem("access_token");
+    setIsAuthenticated(false);
+    setPermissions([]);
+    setUser(null);
+  };
 
   const applyToken = (token: string) => {
-    localStorage.setItem('access_token', token);
-    setIsAuthenticated(true);
-
     try {
       const decoded: JwtPayload = jwtDecode(token);
-      setUser(decoded); // Define o user com base no token decodificado
+
+      if (isTokenExpired(decoded.exp)) {
+        clearAuth();
+        router.replace("/login");
+        return;
+      }
+
+      localStorage.setItem("access_token", token);
+      setIsAuthenticated(true);
+      setUser(decoded);
       setPermissions(decoded.permissions ?? []);
     } catch (err) {
       console.error("Erro ao decodificar token:", err);
-      setPermissions([]);
-      setUser(null);
+      clearAuth();
+      router.replace("/login");
     }
   };
 
-  const signIn = async (email: string, password: string) => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+  useEffect(() => {
+    const token = localStorage.getItem("access_token");
+    if (token) applyToken(token);
+  }, []);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Falha ao autenticar.');
+  // 🔥 Verificação periódica da expiração
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const token = localStorage.getItem("access_token");
+      if (!token) return;
+
+      try {
+        const decoded: JwtPayload = jwtDecode(token);
+        if (isTokenExpired(decoded.exp)) {
+          clearAuth();
+          router.replace("/login");
+        }
+      } catch {
+        clearAuth();
+        router.replace("/login");
       }
+    }, 60_000); // 1 minuto
 
-      const data = await response.json();
-      applyToken(data.access_token);
-      router.push('/home');
-    } catch (err) {
-      console.error("Erro de login:", err);
-      throw err;
+    return () => clearInterval(interval);
+  }, []);
+
+  const signIn = async (email: string, password: string) => {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_BASE_URL}auth/login`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Falha ao autenticar.");
     }
+
+    const data = await response.json();
+    applyToken(data.access_token);
+    router.push("/home");
   };
 
   const logout = () => {
-    localStorage.removeItem('access_token');
-    setIsAuthenticated(false);
-    setPermissions([]);
-    setUser(null); // Limpa o user ao fazer logout
-    router.push('/login');
+    clearAuth();
+    router.push("/login");
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, permissions, user, signIn, logout }}>
+    <AuthContext.Provider
+      value={{ isAuthenticated, permissions, user, signIn, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -94,6 +120,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) throw new Error("useAuth must be used dentro de AuthProvider");
   return context;
 }
