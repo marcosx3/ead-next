@@ -231,7 +231,6 @@ function LessonItem({ field, moduleIndex, lessonIndex, removeLesson }: LessonIte
 		const baseAPI = process.env.NEXT_PUBLIC_API_BASE_URL;
 		const API_URL = `${baseAPI}lessons/video`;
 		const token = localStorage.getItem("access_token");
-		console.log(API_URL);
 		const formData = new FormData();
 		formData.append("file", file);
 

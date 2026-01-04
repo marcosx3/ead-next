@@ -102,8 +102,6 @@ export default function CourseCreatorWizard() {
 					<CourseForm 
 						initialData={courseData.course}
 						onNext={(data) => goToNextStep("modules", data, "course")}
-						// Note que o `CourseForm` anterior deve ser ligeiramente ajustado
-						// para usar `onNext` em vez de submeter diretamente.
 					/>
 				</TabsContent>
 
